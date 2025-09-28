@@ -6,6 +6,7 @@ using UnityEngine.InputSystem;
 using GameDevTV.RTS.Events;
 using GameDevTV.RTS.EventBus;
 using System.Collections.Generic;
+using System.Linq;
 
 
 
@@ -35,6 +36,10 @@ namespace Player.Move
         private HashSet<AbstractUnit> addedUnits = new(24);
         private List<ISelectable> selectedUnits = new(12);
 
+        // event bus
+        private void HandleUnitSelected(UnitSelectedEvent evt) => selectedUnits.Add(evt.Unit);
+        private void HandleUnitDeselected(UnitDeSelectedEvent evt) => selectedUnits.Remove(evt.Unit);
+        private void HandleUnitSpawn(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
         //
         private Vector2 startingMousePosition;
 
@@ -63,10 +68,6 @@ namespace Player.Move
 
         }
 
-        private void HandleUnitSelected(UnitSelectedEvent evt) => selectedUnits.Add(evt.Unit);
-        private void HandleUnitDeselected(UnitDeSelectedEvent evt) => selectedUnits.Remove(evt.Unit);
-        private void HandleUnitSpawn(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
-
         //----------------------------------------------------
 
         private void FixedUpdate()
@@ -92,39 +93,57 @@ namespace Player.Move
         private void HandleDragSelect()
         {
             if (selectionBox == null) { return; }
-
+            Bounds selectionBount;
             // Start drag
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
                 // Set the drag state to true
                 isDragging = true;
-                    
-                    startingMousePosition = Mouse.current.position.ReadValue();
-                    selectionBox.gameObject.SetActive(true);
-                    // Fix: Reset the box's size and position on a new drag
-                    selectionBox.sizeDelta = Vector2.zero;
-                    selectionBox.anchoredPosition = startingMousePosition;
-                }
-                // Continue drag
-                else if (Mouse.current.leftButton.isPressed)
+
+                startingMousePosition = Mouse.current.position.ReadValue();
+                selectionBox.gameObject.SetActive(true);
+                // Fix: Reset the box's size and position on a new drag
+                selectionBox.sizeDelta = Vector2.zero;
+                selectionBox.anchoredPosition = startingMousePosition;
+            }
+            // Continue drag
+            else if (Mouse.current.leftButton.isPressed)
+            {
+                selectionBount = ResizeSelectionBox();
+
+                foreach (AbstractUnit unit in aliveUnits)
                 {
-                    ResizeSelectionBox();
-                }
-                // End drag
-                else if (Mouse.current.leftButton.wasReleasedThisFrame)
-                {
-                    // Set the drag state to false
-                    isDragging = false;
-                    
-                    selectionBox.gameObject.SetActive(false);
-                    // Fix: Reset the box's size and position on drag end
-                    selectionBox.sizeDelta = Vector2.zero;
-                    selectionBox.anchoredPosition = startingMousePosition; // Or just Vector2.zero
-                    // TODO: Add logic here to select units within the drag box.
+                    Vector2 unitPosition = camera.WorldToScreenPoint(unit.transform.position);
+                    if (selectionBount.Contains(unitPosition))
+                    {
+                        addedUnits.Add(unit);
+                    }
                 }
             }
 
-        private void ResizeSelectionBox()
+            // End drag
+            else if (Mouse.current.leftButton.wasReleasedThisFrame)
+            {   
+
+                foreach (AbstractUnit unit in addedUnits)
+                {
+                    unit.Select();
+                    selectedUnits.Add(unit);
+                }
+
+                // Set the drag state to false
+                isDragging = false;
+
+                addedUnits.Clear();
+                
+                selectionBox.gameObject.SetActive(false);
+                // Fix: Reset the box's size and position on drag end
+                selectionBox.sizeDelta = Vector2.zero;
+                selectionBox.anchoredPosition = startingMousePosition;
+            }
+        }
+
+        private Bounds ResizeSelectionBox()
         {
             Vector2 mousePosition = Mouse.current.position.ReadValue();
             float width = mousePosition.x - startingMousePosition.x;
@@ -132,6 +151,8 @@ namespace Player.Move
 
             selectionBox.anchoredPosition = startingMousePosition + new Vector2(width / 2, height / 2);
             selectionBox.sizeDelta = new Vector2(Mathf.Abs(width), Mathf.Abs(height));
+
+            return new Bounds(selectionBox.anchoredPosition, selectionBox.sizeDelta);
         }
 
         // --------------------------------------------------------------------------
@@ -164,13 +185,23 @@ namespace Player.Move
 
         private void DeselectAllUnits()
         {
-                foreach (var unit in selectedUnits)
-                {
-                    // Assuming your ISelectable has a Deselect method
-                    unit.DeSelect(); 
-                }
-                selectedUnits.Clear();
+            if (selectedUnits.Count == 0) return;
+
+            // FIX: Create a copy of the list before iterating.
+            // The .ToList() extension method creates a new list with the same elements.
+            List<ISelectable> unitsToDeselect = selectedUnits.ToList();
+
+            foreach (var unit in unitsToDeselect)
+            {
+                unit.DeSelect(); // This is safe now, even if it modifies the original 'selectedUnits' list.
+            }
+
+            // Since DeSelect() likely removed the units one by one, 
+            // it's safer to clear the original list at the end just in case.
+            selectedUnits.Clear();
         }
+
+
         // --------------------------------------------------------------------------
         // Right-Click Logic
         // --------------------------------------------------------------------------
