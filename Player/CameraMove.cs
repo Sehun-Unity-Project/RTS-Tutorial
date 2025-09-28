@@ -45,6 +45,7 @@ namespace Player.Move
             maxRotationAmount = Math.Abs(cinemachineFollow.FollowOffset.z);
 
             Bus<UnitSelectedEvent>.OnEvent += HandleUnitSelected;
+            Bus<UnitDeSelectedEvent>.OnEvent += HandleUnitDeSelected;
         }
         //----------------------------------------------------
         private void OnDestroy()
@@ -54,14 +55,13 @@ namespace Player.Move
 
         private void HandleUnitSelected(UnitSelectedEvent evt)
         {
-            if (selectedUnit != null)
-            {
-                selectedUnit.DeSelect();
-            }
-
             selectedUnit = evt.Unit;
         }
 
+        private void HandleUnitDeSelected(UnitDeSelectedEvent evt)
+        {
+            selectedUnit = null;
+        }
         //----------------------------------------------------
 
         private void FixedUpdate()
@@ -160,7 +160,6 @@ namespace Player.Move
                 else
                 {
                     selectedUnit?.DeSelect();
-                    selectedUnit = null;
                 }
             }
         }

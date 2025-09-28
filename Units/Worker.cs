@@ -24,6 +24,7 @@ namespace GameDevTV.RTS.Units
             {
                 decalProjector.gameObject.SetActive(false);
             }
+             Bus<UnitSelectedEvent>.Raise(new UnitSelectedEvent(this));
         }
 
         public void MoveTo(Vector3 position)
@@ -37,6 +38,8 @@ namespace GameDevTV.RTS.Units
             {
                 decalProjector.gameObject.SetActive(true);
             }
+
+            Bus<UnitSelectedEvent>.Raise(new UnitSelectedEvent(this));
         }
 
         private void Awake()
