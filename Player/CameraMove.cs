@@ -3,6 +3,10 @@ using GameDevTV.RTS.Units;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using GameDevTV.RTS.Events;
+using GameDevTV.RTS.EventBus;
+
+
 
 namespace Player.Move
 {
@@ -29,7 +33,7 @@ namespace Player.Move
         private Vector2 startingMousePosition;
 
         // New variable to track the drag state
-        private bool isDragging = false; 
+        private bool isDragging = false;
 
         private void Awake()
         {
@@ -39,7 +43,26 @@ namespace Player.Move
             }
             startingFollowOffset = cinemachineFollow.FollowOffset;
             maxRotationAmount = Math.Abs(cinemachineFollow.FollowOffset.z);
+
+            Bus<UnitSelectedEvent>.OnEvent += HandleUnitSelected;
         }
+        //----------------------------------------------------
+        private void OnDestroy()
+        {
+            Bus<UnitSelectedEvent>.OnEvent -= HandleUnitSelected;
+        }
+
+        private void HandleUnitSelected(UnitSelectedEvent evt)
+        {
+            if (selectedUnit != null)
+            {
+                selectedUnit.DeSelect();
+            }
+
+            selectedUnit = evt.Unit;
+        }
+
+        //----------------------------------------------------
 
         private void FixedUpdate()
         {
