@@ -4,14 +4,13 @@ using UnityEngine.Rendering.Universal;
 using GameDevTV.RTS.EventBus;
 using GameDevTV.RTS.Events;
 
-
 namespace GameDevTV.RTS.Units
 {
 
-    // requires
-    [RequireComponent(typeof(NavMeshAgent))]
+    // // requires
+    // [RequireComponent(typeof(NavMeshAgent))]
 
-    public class Worker : MonoBehaviour, ISelectable, IMovable
+    public class Worker : AbstractUnit
     {
 
         private NavMeshAgent agent;
