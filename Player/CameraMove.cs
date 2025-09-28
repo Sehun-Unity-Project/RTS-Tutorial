@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using GameDevTV.RTS.Events;
 using GameDevTV.RTS.EventBus;
+using System.Collections.Generic;
 
 
 
@@ -29,7 +30,12 @@ namespace Player.Move
         private float maxRotationAmount;
         private Vector3 startingFollowOffset;
 
-        private ISelectable selectedUnit;
+        // private ISelectable selectedUnit;
+        private HashSet<AbstractUnit> aliveUnits = new(100);
+        private HashSet<AbstractUnit> addedUnits = new(24);
+        private List<ISelectable> selectedUnits = new(12);
+
+        //
         private Vector2 startingMousePosition;
 
         // New variable to track the drag state
@@ -45,23 +51,22 @@ namespace Player.Move
             maxRotationAmount = Math.Abs(cinemachineFollow.FollowOffset.z);
 
             Bus<UnitSelectedEvent>.OnEvent += HandleUnitSelected;
-            Bus<UnitDeSelectedEvent>.OnEvent += HandleUnitDeSelected;
+            Bus<UnitDeSelectedEvent>.OnEvent += HandleUnitDeselected;
+            Bus<UnitSpawnEvent>.OnEvent += HandleUnitSpawn;
         }
-        //----------------------------------------------------
+        //----------------------EVENT------------------------------
         private void OnDestroy()
         {
             Bus<UnitSelectedEvent>.OnEvent -= HandleUnitSelected;
+            Bus<UnitDeSelectedEvent>.OnEvent -= HandleUnitDeselected;
+            Bus<UnitSpawnEvent>.OnEvent -= HandleUnitSpawn;
+
         }
 
-        private void HandleUnitSelected(UnitSelectedEvent evt)
-        {
-            selectedUnit = evt.Unit;
-        }
+        private void HandleUnitSelected(UnitSelectedEvent evt) => selectedUnits.Add(evt.Unit);
+        private void HandleUnitDeselected(UnitDeSelectedEvent evt) => selectedUnits.Remove(evt.Unit);
+        private void HandleUnitSpawn(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
 
-        private void HandleUnitDeSelected(UnitDeSelectedEvent evt)
-        {
-            selectedUnit = null;
-        }
         //----------------------------------------------------
 
         private void FixedUpdate()
@@ -69,10 +74,8 @@ namespace Player.Move
             Zooming();
             Rotation();
             // Panning only when not dragging
-            if (!isDragging)
-            {
-                Panning();
-            }
+            if (!isDragging) Panning();
+
         }
 
         // Use Update for input-based actions to avoid missing input frames
@@ -136,12 +139,7 @@ namespace Player.Move
         // --------------------------------------------------------------------------
         private void HandleClickSelection()
         {
-            // Do not run this code if a drag is in progress (prevents conflicts)
-            if (isDragging)
-            {
-                return;
-            }
-
+            if (isDragging != false) return;
             // Only run on the frame the button is released
             if (Mouse.current.leftButton.wasReleasedThisFrame)
             {
@@ -150,33 +148,50 @@ namespace Player.Move
 
                 if (Physics.Raycast(cameraRay, out hit, float.MaxValue, selectableUnitMask))
                 {
+                    DeselectAllUnits();
                     if (hit.collider.TryGetComponent(out ISelectable selectable))
                     {
-                        selectedUnit?.DeSelect();
                         selectable.Select();
-                        selectedUnit = selectable;
+                        selectedUnits.Add(selectable);
                     }
                 }
                 else
                 {
-                    selectedUnit?.DeSelect();
+                    DeselectAllUnits();
                 }
             }
         }
 
+        private void DeselectAllUnits()
+        {
+                foreach (var unit in selectedUnits)
+                {
+                    // Assuming your ISelectable has a Deselect method
+                    unit.DeSelect(); 
+                }
+                selectedUnits.Clear();
+        }
         // --------------------------------------------------------------------------
         // Right-Click Logic
         // --------------------------------------------------------------------------
         private void RightClick()
         {
-            if (selectedUnit == null || selectedUnit is not IMovable moveable) { return; }
+            if (selectedUnits.Count == 0) { return; }
 
             Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
 
-            if (Mouse.current.rightButton.wasReleasedThisFrame && Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue, moveableUnitMask))
+            if (Mouse.current.rightButton.wasReleasedThisFrame
+                && Physics.Raycast(cameraRay, out RaycastHit hit, float.MaxValue))
             {
-                moveable.MoveTo(hit.point);
+                foreach (ISelectable selectable in selectedUnits)
+                {
+                    if (selectable is IMovable moveable)
+                    {
+                        moveable.MoveTo(hit.point);
+                    }
+                }
             }
+
         }
 
         // --------------------------------------------------------------------------
