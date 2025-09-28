@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.Rendering.Universal;
+using GameDevTV.RTS.EventBus;
+using GameDevTV.RTS.Events;
+
 
 namespace GameDevTV.RTS.Units
 {
@@ -8,28 +11,30 @@ namespace GameDevTV.RTS.Units
     // requires
     [RequireComponent(typeof(NavMeshAgent))]
 
-    public class Worker : MonoBehaviour , ISelectable, IMovable
+    public class Worker : MonoBehaviour, ISelectable, IMovable
     {
 
         private NavMeshAgent agent;
-        [SerializeField]Transform target;
+        [SerializeField] Transform target;
         [SerializeField] DecalProjector decalProjector;
 
         public void DeSelect()
         {
-            if (decalProjector != null) {
+            if (decalProjector != null)
+            {
                 decalProjector.gameObject.SetActive(false);
             }
         }
 
         public void MoveTo(Vector3 position)
         {
-             agent.SetDestination(position);
+            agent.SetDestination(position);
         }
 
         public void Select()
         {
-            if (decalProjector != null) {
+            if (decalProjector != null)
+            {
                 decalProjector.gameObject.SetActive(true);
             }
         }
