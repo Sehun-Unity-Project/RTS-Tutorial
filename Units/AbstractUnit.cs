@@ -37,7 +37,6 @@ namespace GameDevTV.RTS.Units
             else
             {
                 decalProjector.gameObject.SetActive(true);
-                Debug.Log("Decal Projector set to active.");
             }
 
             Bus<UnitSelectedEvent>.Raise(new UnitSelectedEvent(this));

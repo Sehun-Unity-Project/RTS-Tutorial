@@ -30,6 +30,7 @@ namespace Player.Move
 
         private Vector2 startingMousePosition;
 
+    
         // =========================================================================
         // UNITY LIFECYCLE & EVENTS
         // =========================================================================
@@ -96,10 +97,10 @@ namespace Player.Move
             else if (Mouse.current.leftButton.isPressed)
             {
                 addedUnits.Clear();
-                if (!Keyboard.current.shiftKey.wasPressedThisFrame)
+                if (!Keyboard.current.shiftKey.isPressed)
                 {
                   Debug.Log("DeSelecting");
-                  DeselectAllUnits();  
+                  DeselectAllUnits();
                 }
 
                 Bounds selectionBount = ResizeSelectionBox();
@@ -186,8 +187,9 @@ namespace Player.Move
                     }
                 }
                 // 유닛을 맞추지 못한 경우 (빈 공간 클릭)
-                else
+                else if (!Keyboard.current.anyKey.isPressed)
                 {
+                    Debug.Log("DeSelecting 2");
                     DeselectAllUnits();
                 }
             }
