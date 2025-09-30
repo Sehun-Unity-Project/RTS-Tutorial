@@ -29,7 +29,6 @@ namespace Player.Move
         private void HandleUnitSpawn(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
 
         private Vector2 startingMousePosition;
-        private bool isDragging = false;
 
         // =========================================================================
         // UNITY LIFECYCLE & EVENTS
@@ -86,8 +85,6 @@ namespace Player.Move
             // Start drag
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
-                isDragging = true;
-
                 startingMousePosition = Mouse.current.position.ReadValue();
                 selectionBox.gameObject.SetActive(true);
 
@@ -135,7 +132,6 @@ namespace Player.Move
                     }
                 }
 
-                isDragging = false;
                 addedUnits.Clear();
 
                 selectionBox.gameObject.SetActive(false);
