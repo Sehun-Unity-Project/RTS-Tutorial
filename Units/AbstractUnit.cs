@@ -29,9 +29,17 @@ namespace GameDevTV.RTS.Units
 
         public void Select()
         {
-            if (decalProjector != null)
+            Debug.Log("Select called on " + this.name);
+
+            // Use a direct null check for debugging:
+            if (decalProjector == null) 
+            {
+                Debug.LogError("Decal Projector is NULL on " + this.name);
+            }
+            else
             {
                 decalProjector.gameObject.SetActive(true);
+                Debug.Log("Decal Projector set to active.");
             }
 
             Bus<UnitSelectedEvent>.Raise(new UnitSelectedEvent(this));
