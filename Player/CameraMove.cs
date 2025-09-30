@@ -6,8 +6,7 @@ using UnityEngine.InputSystem;
 using GameDevTV.RTS.Events;
 using GameDevTV.RTS.EventBus;
 using System.Collections.Generic;
-using System.Linq;
-
+using System.Linq; // List.ToList()
 
 
 namespace Player.Move
@@ -15,10 +14,7 @@ namespace Player.Move
     public class CameraMove : MonoBehaviour
     {
         [SerializeField] private CameraMoveConfig cameraMoveConfig;
-
-        // Rigidbody is used for movement to respect physics and colliders
         [SerializeField] private Rigidbody cameraTarget;
-
         [SerializeField] private new Camera camera;
         [SerializeField] private CinemachineCamera cinemachineCamera;
         [SerializeField] private LayerMask selectableUnitMask;
@@ -31,20 +27,22 @@ namespace Player.Move
         private float maxRotationAmount;
         private Vector3 startingFollowOffset;
 
-        // private ISelectable selectedUnit;
+        // 유닛 관리를 위한 컬렉션
         private HashSet<AbstractUnit> aliveUnits = new(100);
-        private HashSet<AbstractUnit> addedUnits = new(24);
-        private List<ISelectable> selectedUnits = new(12);
+        private HashSet<AbstractUnit> addedUnits = new(24); 
+        private List<ISelectable> selectedUnits = new(12); 
 
-        // event bus
+        // 이벤트 버스 핸들러
         private void HandleUnitSelected(UnitSelectedEvent evt) => selectedUnits.Add(evt.Unit);
         private void HandleUnitDeselected(UnitDeSelectedEvent evt) => selectedUnits.Remove(evt.Unit);
         private void HandleUnitSpawn(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
-        //
+        
         private Vector2 startingMousePosition;
-
-        // New variable to track the drag state
-        private bool isDragging = false;
+        private bool isDragging = false; 
+        
+        // =========================================================================
+        // UNITY LIFECYCLE & EVENTS
+        // =========================================================================
 
         private void Awake()
         {
@@ -55,31 +53,45 @@ namespace Player.Move
             startingFollowOffset = cinemachineFollow.FollowOffset;
             maxRotationAmount = Math.Abs(cinemachineFollow.FollowOffset.z);
 
+            // 이벤트 구독
             Bus<UnitSelectedEvent>.OnEvent += HandleUnitSelected;
             Bus<UnitDeSelectedEvent>.OnEvent += HandleUnitDeselected;
             Bus<UnitSpawnEvent>.OnEvent += HandleUnitSpawn;
         }
-        //----------------------EVENT------------------------------
+
+        [Obsolete]
+        private void Start()
+        {
+            // [초기화 수정] 씬에 이미 배치된 유닛을 수동으로 찾아 추가합니다.
+            if (aliveUnits.Count == 0)
+            {
+                AbstractUnit[] allUnitsInScene = FindObjectsOfType<AbstractUnit>();
+                
+                if (allUnitsInScene.Length > 0)
+                {
+                    foreach (var unit in allUnitsInScene)
+                    {
+                        aliveUnits.Add(unit);
+                    }
+                    Debug.Log($"[Init Fix] Manually added {aliveUnits.Count} units to aliveUnits list for selection.");
+                }
+            }
+        }
+
         private void OnDestroy()
         {
             Bus<UnitSelectedEvent>.OnEvent -= HandleUnitSelected;
             Bus<UnitDeSelectedEvent>.OnEvent -= HandleUnitDeselected;
             Bus<UnitSpawnEvent>.OnEvent -= HandleUnitSpawn;
-
         }
-
-        //----------------------------------------------------
 
         private void FixedUpdate()
         {
             Zooming();
             Rotation();
-            // Panning only when not dragging
-            if (!isDragging) Panning();
-
+            if (!isDragging) Panning(); 
         }
 
-        // Use Update for input-based actions to avoid missing input frames
         private void Update()
         {
             HandleDragSelect();
@@ -87,33 +99,48 @@ namespace Player.Move
             RightClick();
         }
 
-        // --------------------------------------------------------------------------
-        // Drag Select Logic
-        // --------------------------------------------------------------------------
+        // =========================================================================
+        // DRAG SELECT LOGIC (상세 디버그 추가)
+        // =========================================================================
+
         private void HandleDragSelect()
         {
             if (selectionBox == null) { return; }
-            Bounds selectionBount;
+
             // Start drag
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
-                // Set the drag state to true
                 isDragging = true;
 
                 startingMousePosition = Mouse.current.position.ReadValue();
                 selectionBox.gameObject.SetActive(true);
-                // Fix: Reset the box's size and position on a new drag
+
                 selectionBox.sizeDelta = Vector2.zero;
                 selectionBox.anchoredPosition = startingMousePosition;
+
             }
             // Continue drag
             else if (Mouse.current.leftButton.isPressed)
             {
-                selectionBount = ResizeSelectionBox();
+                addedUnits.Clear();
+                DeselectAllUnits();
+
+                Bounds selectionBount = ResizeSelectionBox();
+
+                if (aliveUnits.Count == 0)
+                {
+                    Debug.LogWarning("DEBUG 2: aliveUnits list is EMPTY! No units to select.");
+                }
+                else
+                {
+                    // 이 로그가 뜨고 있다면 유닛 목록은 제대로 채워진 상태입니다.
+                    Debug.Log($"DEBUG 2: aliveUnits list size: {aliveUnits.Count}. Proceeding to check bounds.");
+                }
 
                 foreach (AbstractUnit unit in aliveUnits)
                 {
                     Vector2 unitPosition = camera.WorldToScreenPoint(unit.transform.position);
+
                     if (selectionBount.Contains(unitPosition))
                     {
                         addedUnits.Add(unit);
@@ -123,24 +150,29 @@ namespace Player.Move
 
             // End drag
             else if (Mouse.current.leftButton.wasReleasedThisFrame)
-            {   
+            {
+                if (addedUnits.Count > 0)
+                {
+                    Debug.Log($"DEBUG 4: Drag ended. Selecting {addedUnits.Count} units.");
+                }
 
                 foreach (AbstractUnit unit in addedUnits)
                 {
-                    unit.Select();
-                    selectedUnits.Add(unit);
+                    if (unit is ISelectable selectable)
+                    {
+                        Debug.Log($"DEBUG 5: Drag ended. Selecting {unit}");
+                        unit.Select();
+                        selectedUnits.Add(unit);
+                    }
                 }
 
-                // Set the drag state to false
-                isDragging = false;
-
                 addedUnits.Clear();
-                
+
                 selectionBox.gameObject.SetActive(false);
-                // Fix: Reset the box's size and position on drag end
                 selectionBox.sizeDelta = Vector2.zero;
                 selectionBox.anchoredPosition = startingMousePosition;
             }
+            isDragging = false;
         }
 
         private Bounds ResizeSelectionBox()
@@ -149,37 +181,50 @@ namespace Player.Move
             float width = mousePosition.x - startingMousePosition.x;
             float height = mousePosition.y - startingMousePosition.y;
 
+            // UI 시각적 표시 업데이트
             selectionBox.anchoredPosition = startingMousePosition + new Vector2(width / 2, height / 2);
             selectionBox.sizeDelta = new Vector2(Mathf.Abs(width), Mathf.Abs(height));
+            
+            // Bounds 계산 (raw screen space 사용)
+            float minX = Mathf.Min(startingMousePosition.x, mousePosition.x);
+            float maxX = Mathf.Max(startingMousePosition.x, mousePosition.x);
+            float minY = Mathf.Min(startingMousePosition.y, mousePosition.y);
+            float maxY = Mathf.Max(startingMousePosition.y, mousePosition.y);
+            
+            // Z=0을 중심으로 하는 스크린 좌표 Bounds
+            Vector3 center = new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, 0f);
+            Vector3 size = new Vector3(maxX - minX, maxY - minY, 1f);
 
-            return new Bounds(selectionBox.anchoredPosition, selectionBox.sizeDelta);
+            return new Bounds(center, size);
         }
 
-        // --------------------------------------------------------------------------
-        // Click Selection Logic
-        // --------------------------------------------------------------------------
+        // =========================================================================
+        // CLICK & DESELECTION LOGIC
+        // =========================================================================
+
         private void HandleClickSelection()
         {
-            if (isDragging != false) return;
-            // Only run on the frame the button is released
-            if (Mouse.current.leftButton.wasReleasedThisFrame)
-            {
-                Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
-                RaycastHit hit;
+            // 드래그 중이 아니며, 마우스 버튼을 뗀 순간에만 실행합니다.
+            if (isDragging || !Mouse.current.leftButton.wasReleasedThisFrame) return;
 
-                if (Physics.Raycast(cameraRay, out hit, float.MaxValue, selectableUnitMask))
+            Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
+            RaycastHit hit;
+
+            // 광선 투사가 유닛을 맞춘 경우
+            if (Physics.Raycast(cameraRay, out hit, float.MaxValue, selectableUnitMask))
+            {
+                DeselectAllUnits();
+                if (hit.collider.TryGetComponent(out ISelectable selectable))
                 {
-                    DeselectAllUnits();
-                    if (hit.collider.TryGetComponent(out ISelectable selectable))
-                    {
-                        selectable.Select();
-                        selectedUnits.Add(selectable);
-                    }
+                    selectable.Select();
+                    selectedUnits.Add(selectable);
                 }
-                else
-                {
-                    DeselectAllUnits();
-                }
+            }
+            // 유닛을 맞추지 못한 경우 (빈 공간 클릭)
+            else if(isDragging)
+            {   
+                // 요놈이 문제였음.
+                DeselectAllUnits();
             }
         }
 
@@ -187,24 +232,20 @@ namespace Player.Move
         {
             if (selectedUnits.Count == 0) return;
 
-            // FIX: Create a copy of the list before iterating.
-            // The .ToList() extension method creates a new list with the same elements.
             List<ISelectable> unitsToDeselect = selectedUnits.ToList();
 
             foreach (var unit in unitsToDeselect)
             {
-                unit.DeSelect(); // This is safe now, even if it modifies the original 'selectedUnits' list.
+                unit.DeSelect();
             }
 
-            // Since DeSelect() likely removed the units one by one, 
-            // it's safer to clear the original list at the end just in case.
             selectedUnits.Clear();
         }
 
+        // =========================================================================
+        // RIGHT-CLICK & MOVEMENT
+        // =========================================================================
 
-        // --------------------------------------------------------------------------
-        // Right-Click Logic
-        // --------------------------------------------------------------------------
         private void RightClick()
         {
             if (selectedUnits.Count == 0) { return; }
@@ -222,12 +263,80 @@ namespace Player.Move
                     }
                 }
             }
-
         }
 
-        // --------------------------------------------------------------------------
-        // Other Camera & Movement Methods
-        // --------------------------------------------------------------------------
+        // =========================================================================
+        // CAMERA MOVEMENT & UTILITIES
+        // =========================================================================
+        
+        private void Panning()
+        {
+            Vector2 moveAmount = KeyBoardPanning();
+            moveAmount += MousePanning();
+
+            cameraTarget.linearVelocity = new Vector3(Math.Min(moveAmount.x, 30), 0, moveAmount.y);
+        }
+
+        Vector2 MousePanning()
+        {
+            Vector2 moveAmount = Vector2.zero;
+            if (!cameraMoveConfig.EnableEdgePan)
+            {
+                return moveAmount;
+            }
+
+            Vector2 mousePosition = Mouse.current.position.ReadValue();
+            int screenWidth = Screen.width;
+            int screenHeight = Screen.height;
+
+            if (mousePosition == Vector2.zero) 
+            {
+                return moveAmount;
+            }
+
+            if (mousePosition.x <= cameraMoveConfig.EdgePanSize)
+            {
+                moveAmount.x -= cameraMoveConfig.MousePanSpeed;
+            }
+            else if (mousePosition.x >= screenWidth - cameraMoveConfig.EdgePanSize)
+            {
+                moveAmount.x += cameraMoveConfig.MousePanSpeed;
+            }
+
+            if (mousePosition.y <= cameraMoveConfig.EdgePanSize)
+            {
+                moveAmount.y -= cameraMoveConfig.MousePanSpeed;
+            }
+            else if (mousePosition.y >= screenHeight - cameraMoveConfig.EdgePanSize)
+            {
+                moveAmount.y += cameraMoveConfig.MousePanSpeed;
+            }
+
+            return moveAmount;
+        }
+        
+        Vector2 KeyBoardPanning()
+        {
+            Vector2 moveAmount = Vector2.zero;
+            if (Keyboard.current.upArrowKey.isPressed)
+            {
+                moveAmount.y += cameraMoveConfig.KeyBoardPanSpeed;
+            }
+            if (Keyboard.current.downArrowKey.isPressed)
+            {
+                moveAmount.y -= cameraMoveConfig.KeyBoardPanSpeed;
+            }
+            if (Keyboard.current.leftArrowKey.isPressed)
+            {
+                moveAmount.x -= cameraMoveConfig.KeyBoardPanSpeed;
+            }
+            if (Keyboard.current.rightArrowKey.isPressed)
+            {
+                moveAmount.x += cameraMoveConfig.KeyBoardPanSpeed;
+            }
+            return moveAmount;
+        }
+
         private void Rotation()
         {
             if (SouldSetRotationStartTime())
@@ -294,76 +403,6 @@ namespace Player.Move
                 targetFollowOffset,
                 zoomTime
             );
-        }
-
-        private void Panning()
-        {
-            Vector2 moveAmount = KeyBoardPanning();
-            moveAmount += MousePanning();
-
-            cameraTarget.linearVelocity = new Vector3(Math.Min(moveAmount.x, 30), 0, moveAmount.y);
-        }
-
-        Vector2 MousePanning()
-        {
-            Vector2 moveAmount = Vector2.zero;
-            if (!cameraMoveConfig.EnableEdgePan)
-            {
-                return moveAmount;
-            }
-
-            Vector2 mousePosition = Mouse.current.position.ReadValue();
-            int screenWidth = Screen.width;
-            int screenHeight = Screen.height;
-
-            // Fix: Only start panning if the mouse has moved significantly from the initial position.
-            // This prevents the camera from moving if the mouse starts on the edge.
-            if (mousePosition == Vector2.zero) 
-            {
-                return moveAmount;
-            }
-
-            if (mousePosition.x <= cameraMoveConfig.EdgePanSize)
-            {
-                moveAmount.x -= cameraMoveConfig.MousePanSpeed;
-            }
-            else if (mousePosition.x >= screenWidth - cameraMoveConfig.EdgePanSize)
-            {
-                moveAmount.x += cameraMoveConfig.MousePanSpeed;
-            }
-
-            if (mousePosition.y <= cameraMoveConfig.EdgePanSize)
-            {
-                moveAmount.y -= cameraMoveConfig.MousePanSpeed;
-            }
-            else if (mousePosition.y >= screenHeight - cameraMoveConfig.EdgePanSize)
-            {
-                moveAmount.y += cameraMoveConfig.MousePanSpeed;
-            }
-
-            return moveAmount;
-        }
-
-        Vector2 KeyBoardPanning()
-        {
-            Vector2 moveAmount = Vector2.zero;
-            if (Keyboard.current.upArrowKey.isPressed)
-            {
-                moveAmount.y += cameraMoveConfig.KeyBoardPanSpeed;
-            }
-            if (Keyboard.current.downArrowKey.isPressed)
-            {
-                moveAmount.y -= cameraMoveConfig.KeyBoardPanSpeed;
-            }
-            if (Keyboard.current.leftArrowKey.isPressed)
-            {
-                moveAmount.x -= cameraMoveConfig.KeyBoardPanSpeed;
-            }
-            if (Keyboard.current.rightArrowKey.isPressed)
-            {
-                moveAmount.x += cameraMoveConfig.KeyBoardPanSpeed;
-            }
-            return moveAmount;
         }
 
         private bool EndKeyIsPressed()
