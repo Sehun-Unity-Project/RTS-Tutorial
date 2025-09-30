@@ -107,11 +107,6 @@ namespace Player.Move
                 {
                     Debug.LogWarning("DEBUG 2: aliveUnits list is EMPTY! No units to select.");
                 }
-                else
-                {
-                    // 이 로그가 뜨고 있다면 유닛 목록은 제대로 채워진 상태입니다.
-                    Debug.Log($"DEBUG 2: aliveUnits list size: {aliveUnits.Count}. Proceeding to check bounds.");
-                }
 
                 foreach (AbstractUnit unit in aliveUnits)
                 {
@@ -127,11 +122,6 @@ namespace Player.Move
             // End drag
             else if (Mouse.current.leftButton.wasReleasedThisFrame)
             {
-                if (addedUnits.Count > 0)
-                {
-                    Debug.Log($"DEBUG 4: Drag ended. Selecting {addedUnits.Count} units.");
-                }
-
                 foreach (AbstractUnit unit in addedUnits)
                 {
                     if (unit is ISelectable selectable)
