@@ -26,17 +26,6 @@ namespace Player.Move
         private float rotationStartTime;
         private float maxRotationAmount;
         private Vector3 startingFollowOffset;
-
-        // 유닛 관리를 위한 컬렉션
-        private HashSet<AbstractUnit> aliveUnits = new(100);
-        private HashSet<AbstractUnit> addedUnits = new(24); 
-        private List<ISelectable> selectedUnits = new(12); 
-
-        // 이벤트 버스 핸들러
-        private void HandleUnitSelected(UnitSelectedEvent evt) => selectedUnits.Add(evt.Unit);
-        private void HandleUnitDeselected(UnitDeSelectedEvent evt) => selectedUnits.Remove(evt.Unit);
-        private void HandleUnitSpawn(UnitSpawnEvent evt) => aliveUnits.Add(evt.Unit);
-        
         private Vector2 startingMousePosition;
         private bool isDragging = false; 
         
@@ -52,30 +41,6 @@ namespace Player.Move
             }
             startingFollowOffset = cinemachineFollow.FollowOffset;
             maxRotationAmount = Math.Abs(cinemachineFollow.FollowOffset.z);
-
-            // 이벤트 구독
-            Bus<UnitSelectedEvent>.OnEvent += HandleUnitSelected;
-            Bus<UnitDeSelectedEvent>.OnEvent += HandleUnitDeselected;
-            Bus<UnitSpawnEvent>.OnEvent += HandleUnitSpawn;
-        }
-
-        [Obsolete]
-        private void Start()
-        {
-            // [초기화 수정] 씬에 이미 배치된 유닛을 수동으로 찾아 추가합니다.
-            if (aliveUnits.Count == 0)
-            {
-                AbstractUnit[] allUnitsInScene = FindObjectsOfType<AbstractUnit>();
-                
-                if (allUnitsInScene.Length > 0)
-                {
-                    foreach (var unit in allUnitsInScene)
-                    {
-                        aliveUnits.Add(unit);
-                    }
-                    Debug.Log($"[Init Fix] Manually added {aliveUnits.Count} units to aliveUnits list for selection.");
-                }
-            }
         }
 
         // private void OnDestroy()
