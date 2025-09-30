@@ -29,8 +29,6 @@ namespace GameDevTV.RTS.Units
 
         public void Select()
         {
-            Debug.Log("Select called on " + this.name);
-
             // Use a direct null check for debugging:
             if (decalProjector == null) 
             {
