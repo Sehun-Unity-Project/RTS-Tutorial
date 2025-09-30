@@ -99,7 +99,11 @@ namespace Player.Move
             else if (Mouse.current.leftButton.isPressed)
             {
                 addedUnits.Clear();
-                DeselectAllUnits();
+                if (!Keyboard.current.shiftKey.wasPressedThisFrame)
+                {
+                  Debug.Log("DeSelecting");
+                  DeselectAllUnits();  
+                }
 
                 Bounds selectionBount = ResizeSelectionBox();
 
@@ -126,7 +130,6 @@ namespace Player.Move
                 {
                     if (unit is ISelectable selectable)
                     {
-                        Debug.Log($"DEBUG 5: Drag ended. Selecting {unit}");
                         unit.Select();
                         selectedUnits.Add(unit);
                     }
@@ -171,25 +174,26 @@ namespace Player.Move
         private void HandleClickSelection()
         {
             // 드래그 중이 아니며, 마우스 버튼을 뗀 순간에만 실행합니다.
-            if (isDragging || !Mouse.current.leftButton.wasReleasedThisFrame) return;
-
-            Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
-            RaycastHit hit;
-
-            // 광선 투사가 유닛을 맞춘 경우
-            if (Physics.Raycast(cameraRay, out hit, float.MaxValue, selectableUnitMask))
+            if (Mouse.current.leftButton.isPressed)
             {
-                DeselectAllUnits();
-                if (hit.collider.TryGetComponent(out ISelectable selectable))
+
+                Ray cameraRay = camera.ScreenPointToRay(Mouse.current.position.ReadValue());
+                RaycastHit hit;
+
+                // 광선 투사가 유닛을 맞춘 경우
+                if (Physics.Raycast(cameraRay, out hit, float.MaxValue, selectableUnitMask))
                 {
-                    selectable.Select();
-                    selectedUnits.Add(selectable);
+                    if (hit.collider.TryGetComponent(out ISelectable selectable))
+                    {
+                        selectable.Select();
+                        selectedUnits.Add(selectable);
+                    }
                 }
-            }
-            // 유닛을 맞추지 못한 경우 (빈 공간 클릭)
-            else if (isDragging)
-            {
-                DeselectAllUnits();
+                // 유닛을 맞추지 못한 경우 (빈 공간 클릭)
+                else
+                {
+                    DeselectAllUnits();
+                }
             }
         }
 
