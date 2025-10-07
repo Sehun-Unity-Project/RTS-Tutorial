@@ -124,13 +124,10 @@ namespace Player.Move
             // End drag
             else if (Mouse.current.leftButton.wasReleasedThisFrame)
             {
-                foreach (AbstractUnit unit in addedUnits)
+                foreach (ISelectable unit in addedUnits)
                 {
-                    if (unit is ISelectable selectable)
-                    {
                         unit.Select();
                         selectedUnits.Add(unit);
-                    }
                 }
 
                 addedUnits.Clear();
@@ -170,7 +167,7 @@ namespace Player.Move
 
         private void HandleClickSelection()
         {
-            // 드래그 중이 아니며, 마우스 버튼을 뗀 순간에만 실행합니다.
+            // 드래그 중이 아니며, 마우스 버튼을 뗀 순간에만 실행.
             if (Mouse.current.leftButton.isPressed)
             {
 
@@ -180,6 +177,7 @@ namespace Player.Move
                 // 광선 투사가 유닛을 맞춘 경우
                 if (Physics.Raycast(cameraRay, out hit, float.MaxValue, selectableUnitMask))
                 {
+                    print("ray hit");
                     if (hit.collider.TryGetComponent(out ISelectable selectable))
                     {
                         selectable.Select();
@@ -189,7 +187,6 @@ namespace Player.Move
                 // 유닛을 맞추지 못한 경우 (빈 공간 클릭)
                 else if (!Keyboard.current.anyKey.isPressed)
                 {
-                    Debug.Log("DeSelecting 2");
                     DeselectAllUnits();
                 }
             }
@@ -232,7 +229,7 @@ namespace Player.Move
                     }
                 }
 
-                 int layer = 0;
+            
                 int unitsOnLayer = 0;
                 int maxUnitsOnLayer = 1;
                 float circleRadius = 0;
@@ -251,26 +248,13 @@ namespace Player.Move
 
                     if (unitsOnLayer >= maxUnitsOnLayer)
                     {
-                        layer++;
                         unitsOnLayer = 0;
                         circleRadius += unit.AgentRadius * 3.5f;
                         maxUnitsOnLayer = Mathf.FloorToInt(2 * Mathf.PI * circleRadius / (unit.AgentRadius * 2));
                         radialOffset = 2 * Mathf.PI / maxUnitsOnLayer;
                     }
                 }
-                // foreach (ISelectable selectable in selectedUnits)
-                // {
-                //     if (selectable is IMovable moveable)
-                //     {
-                //         moveable.MoveTo(hit.point);
-                //     }
-                // }
             }
         }
-
-        // =========================================================================
-        // CAMERA MOVEMENT & UTILITIES
-        // =========================================================================
-
     }
 }

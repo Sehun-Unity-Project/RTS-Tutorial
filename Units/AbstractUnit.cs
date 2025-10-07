@@ -7,7 +7,7 @@ using UnityEngine.Rendering.Universal;
 namespace GameDevTV.RTS.Units
 {
     [RequireComponent(typeof(NavMeshAgent))]
-    public abstract class AbstractUnit : MonoBehaviour, ISelectable, IMovable
+    public abstract class AbstractUnit : AbstractCommandable, IMovable
     {
         [SerializeField] private DecalProjector decalProjector;
         public float AgentRadius => agent.radius;
@@ -18,39 +18,15 @@ namespace GameDevTV.RTS.Units
             agent = GetComponent<NavMeshAgent>();
         }
 
-        private void Start()
+        protected override void Start()
         {
-            // Bus<UnitSpawnEvent>.Raise(new UnitSpawnEvent(this));
+            base.Start();
+             Bus<UnitSpawnEvent>.Raise(new UnitSpawnEvent(this));
         }
 
         public void MoveTo(Vector3 position)
         {
             agent.SetDestination(position);
-        }
-
-        public void Select()
-        {
-            // Use a direct null check for debugging:
-            if (decalProjector == null) 
-            {
-                Debug.LogError("Decal Projector is NULL on " + this.name);
-            }
-            else
-            {
-                decalProjector.gameObject.SetActive(true);
-            }
-
-            Bus<UnitSelectedEvent>.Raise(new UnitSelectedEvent(this));
-        }
-
-        public void DeSelect()
-        {
-            if (decalProjector != null)
-            {
-                decalProjector.gameObject.SetActive(false);
-            }
-
-            Bus<UnitDeSelectedEvent>.Raise(new UnitDeSelectedEvent(this));
         }
     }
 }
